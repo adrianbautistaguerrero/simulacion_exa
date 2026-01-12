@@ -235,8 +235,17 @@ export default function SpamDetectorPage() {
   const currentError = inputMode === "text" ? error : fileError
   const currentLoading = inputMode === "text" ? loading : fileLoading
 
-  const spamProbability = currentResult?.confidence || 0
-  const hamProbability = currentResult ? currentResult.ham_probability || 100 - currentResult.confidence : 0
+  const spamProbability = currentResult
+    ? currentResult.prediction === "spam"
+      ? currentResult.confidence
+      : 100 - currentResult.confidence
+    : 0
+
+  const hamProbability = currentResult
+    ? currentResult.prediction === "ham"
+      ? currentResult.confidence
+      : 100 - currentResult.confidence
+    : 0
 
   const chartData = statistics
     ? [
