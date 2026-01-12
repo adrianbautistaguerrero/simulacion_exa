@@ -50,11 +50,10 @@ export default function SpamDetectorPage() {
   const [fileError, setFileError] = useState<string | null>(null)
   const [fileTextContent, setFileTextContent] = useState<string | null>(null)
 
-  const [localStats, setLocalStats] = useState<LocalStats>({
-    spamCount: 0,
-    hamCount: 0,
-    spamConfidences: [],
-    hamConfidences: [],
+  const [chartStats, setChartStats] = useState({
+    spamPercentage: 0,
+    hamPercentage: 0,
+    totalAnalyses: 0,
   })
 
   // Analyze text message
@@ -82,17 +81,17 @@ export default function SpamDetectorPage() {
       setResult(data)
 
       if (data.prediction === "spam") {
-        setLocalStats((prev) => ({
-          ...prev,
-          spamCount: prev.spamCount + 1,
-          spamConfidences: [...prev.spamConfidences, data.confidence],
-        }))
+        setChartStats({
+          spamPercentage: data.confidence,
+          hamPercentage: 100 - data.confidence,
+          totalAnalyses: chartStats.totalAnalyses + 1,
+        })
       } else if (data.prediction === "ham") {
-        setLocalStats((prev) => ({
-          ...prev,
-          hamCount: prev.hamCount + 1,
-          hamConfidences: [...prev.hamConfidences, data.confidence],
-        }))
+        setChartStats({
+          spamPercentage: 100 - data.confidence,
+          hamPercentage: data.confidence,
+          totalAnalyses: chartStats.totalAnalyses + 1,
+        })
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido")
@@ -126,17 +125,17 @@ export default function SpamDetectorPage() {
       setFileResult(data)
 
       if (data.prediction === "spam") {
-        setLocalStats((prev) => ({
-          ...prev,
-          spamCount: prev.spamCount + 1,
-          spamConfidences: [...prev.spamConfidences, data.confidence],
-        }))
+        setChartStats({
+          spamPercentage: data.confidence,
+          hamPercentage: 100 - data.confidence,
+          totalAnalyses: chartStats.totalAnalyses + 1,
+        })
       } else if (data.prediction === "ham") {
-        setLocalStats((prev) => ({
-          ...prev,
-          hamCount: prev.hamCount + 1,
-          hamConfidences: [...prev.hamConfidences, data.confidence],
-        }))
+        setChartStats({
+          spamPercentage: 100 - data.confidence,
+          hamPercentage: data.confidence,
+          totalAnalyses: chartStats.totalAnalyses + 1,
+        })
       }
     } catch (err) {
       setFileError(err instanceof Error ? err.message : "Error desconocido")
@@ -184,21 +183,6 @@ export default function SpamDetectorPage() {
   const currentError = inputMode === "text" ? error : fileError
   const currentLoading = inputMode === "text" ? loading : fileLoading
 
-  const { spamCount, hamCount, spamConfidences, hamConfidences } = localStats
-  const totalAnalyses = spamCount + hamCount
-
-  // Calcular promedio de confianza para spam y ham
-  const avgSpamConfidence =
-    spamConfidences.length > 0 ? spamConfidences.reduce((a, b) => a + b, 0) / spamConfidences.length : 0
-
-  const avgHamConfidence =
-    hamConfidences.length > 0 ? hamConfidences.reduce((a, b) => a + b, 0) / hamConfidences.length : 0
-
-  const chartData = [
-    { name: "SPAM", value: avgSpamConfidence, count: spamCount, fill: "#dc2626" },
-    { name: "HAM", value: avgHamConfidence, count: hamCount, fill: "#16a34a" },
-  ]
-
   const chartConfig = {
     spam: {
       label: "SPAM",
@@ -209,6 +193,13 @@ export default function SpamDetectorPage() {
       color: "#16a34a",
     },
   }
+
+  const { spamPercentage, hamPercentage, totalAnalyses } = chartStats
+
+  const chartData = [
+    { name: "SPAM", value: spamPercentage, fill: "#dc2626" },
+    { name: "HAM", value: hamPercentage, fill: "#16a34a" },
+  ]
 
   return (
     <main className="min-h-screen bg-background">
@@ -237,7 +228,7 @@ export default function SpamDetectorPage() {
             <div className="grid md:grid-cols-2 gap-8">
               {/* Improved pie chart */}
               <div className="flex flex-col items-center">
-                <h3 className="text-lg font-semibold mb-4">Confianza por Tipo</h3>
+                <h3 className="text-lg font-semibold mb-4">Probabilidad del Último Análisis</h3>
                 <ChartContainer config={chartConfig} className="h-[350px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -267,8 +258,7 @@ export default function SpamDetectorPage() {
                                 <p className="font-bold" style={{ color: data.fill }}>
                                   {data.name}
                                 </p>
-                                <p className="text-sm">Confianza: {data.value.toFixed(1)}%</p>
-                                <p className="text-sm">Cantidad: {data.count}</p>
+                                <p className="text-sm">Probabilidad: {data.value.toFixed(1)}%</p>
                               </div>
                             )
                           }
@@ -283,34 +273,30 @@ export default function SpamDetectorPage() {
               <div className="flex flex-col justify-center space-y-4">
                 <Card className="p-6 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/40 dark:to-red-900/40 border-2 border-red-300 dark:border-red-700 shadow-lg">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-bold text-red-700 dark:text-red-300">SPAM Detectado</h3>
+                    <h3 className="text-lg font-bold text-red-700 dark:text-red-300">Probabilidad SPAM</h3>
                     <AlertCircle className="h-7 w-7 text-red-600 dark:text-red-400" />
                   </div>
                   <div className="flex items-baseline gap-2 mb-2">
                     <span className="text-5xl font-bold text-red-700 dark:text-red-300">
-                      {avgSpamConfidence.toFixed(1)}%
+                      {spamPercentage.toFixed(1)}%
                     </span>
                   </div>
-                  <p className="text-sm text-red-600 dark:text-red-400 mb-3">
-                    Confianza promedio - {spamCount} email{spamCount !== 1 ? "s" : ""}
-                  </p>
-                  <Progress value={avgSpamConfidence} className="h-3 bg-red-200 dark:bg-red-900/50" />
+                  <p className="text-sm text-red-600 dark:text-red-400 mb-3">Último análisis realizado</p>
+                  <Progress value={spamPercentage} className="h-3 bg-red-200 dark:bg-red-900/50" />
                 </Card>
 
                 <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/40 dark:to-green-900/40 border-2 border-green-300 dark:border-green-700 shadow-lg">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-bold text-green-700 dark:text-green-300">HAM (Legítimo)</h3>
+                    <h3 className="text-lg font-bold text-green-700 dark:text-green-300">Probabilidad HAM</h3>
                     <Mail className="h-7 w-7 text-green-600 dark:text-green-400" />
                   </div>
                   <div className="flex items-baseline gap-2 mb-2">
                     <span className="text-5xl font-bold text-green-700 dark:text-green-300">
-                      {avgHamConfidence.toFixed(1)}%
+                      {hamPercentage.toFixed(1)}%
                     </span>
                   </div>
-                  <p className="text-sm text-green-600 dark:text-green-400 mb-3">
-                    Confianza promedio - {hamCount} email{hamCount !== 1 ? "s" : ""}
-                  </p>
-                  <Progress value={avgHamConfidence} className="h-3 bg-green-200 dark:bg-green-900/50" />
+                  <p className="text-sm text-green-600 dark:text-green-400 mb-3">Último análisis realizado</p>
+                  <Progress value={hamPercentage} className="h-3 bg-green-200 dark:bg-green-900/50" />
                 </Card>
 
                 <div className="text-center p-5 bg-gradient-to-br from-muted to-muted/50 rounded-lg border-2 shadow-md">
@@ -499,4 +485,3 @@ Buy now and win $1000000!!!`}
     </main>
   )
 }
-
