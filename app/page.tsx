@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { AlertCircle, Mail, Shield, Loader2, FileText } from "lucide-react"
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts"
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
@@ -177,11 +179,27 @@ export default function SpamDetectorPage() {
   const currentError = inputMode === "text" ? error : fileError
   const currentLoading = inputMode === "text" ? loading : fileLoading
 
-  const spamPercentage = statistics?.spam_percentage ?? 0
-  const hamPercentage = statistics?.ham_percentage ?? 0
   const spamCount = statistics?.spam_count ?? 0
   const hamCount = statistics?.ham_count ?? 0
   const totalAnalyses = statistics?.total_analyses ?? 0
+  const spamPercentage = totalAnalyses > 0 ? (spamCount / totalAnalyses) * 100 : 0
+  const hamPercentage = totalAnalyses > 0 ? (hamCount / totalAnalyses) * 100 : 0
+
+  const chartData = [
+    { name: "SPAM", value: spamCount, percentage: spamPercentage, fill: "#dc2626" },
+    { name: "HAM", value: hamCount, percentage: hamPercentage, fill: "#16a34a" },
+  ]
+
+  const chartConfig = {
+    spam: {
+      label: "SPAM",
+      color: "#dc2626",
+    },
+    ham: {
+      label: "HAM (Legítimo)",
+      color: "#16a34a",
+    },
+  }
 
   return (
     <main className="min-h-screen bg-background">
@@ -196,104 +214,87 @@ export default function SpamDetectorPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* SPAM Percentage Chart */}
-          <Card className="p-6 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950 dark:to-red-900">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-red-700 dark:text-red-300">SPAM Detectado</h3>
-              <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
-            </div>
-            <div className="flex items-center justify-center py-6">
-              <div className="relative">
-                <svg className="w-32 h-32 transform -rotate-90">
-                  <circle
-                    cx="64"
-                    cy="64"
-                    r="56"
-                    stroke="currentColor"
-                    strokeWidth="12"
-                    fill="none"
-                    className="text-red-200 dark:text-red-800"
-                  />
-                  <circle
-                    cx="64"
-                    cy="64"
-                    r="56"
-                    stroke="currentColor"
-                    strokeWidth="12"
-                    fill="none"
-                    strokeDasharray={`${2 * Math.PI * 56}`}
-                    strokeDashoffset={`${2 * Math.PI * 56 * (1 - spamPercentage / 100)}`}
-                    className="text-red-600 dark:text-red-400"
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-3xl font-bold text-red-700 dark:text-red-300">
-                    {spamPercentage.toFixed(1)}%
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="text-center">
-              <p className="text-sm text-red-700 dark:text-red-300">
-                {spamCount} de {totalAnalyses} emails
-              </p>
-            </div>
-          </Card>
+        <Card className="p-6">
+          <h2 className="text-2xl font-bold mb-6 text-center">Distribución de Análisis</h2>
 
-          {/* HAM Percentage Chart */}
-          <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-green-700 dark:text-green-300">HAM (Legítimo)</h3>
-              <Mail className="h-6 w-6 text-green-600 dark:text-green-400" />
+          {totalAnalyses === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Mail className="h-16 w-16 mx-auto mb-4 opacity-50" />
+              <p className="text-lg">Aún no hay análisis realizados</p>
+              <p className="text-sm">Las gráficas aparecerán después de analizar emails</p>
             </div>
-            <div className="flex items-center justify-center py-6">
-              <div className="relative">
-                <svg className="w-32 h-32 transform -rotate-90">
-                  <circle
-                    cx="64"
-                    cy="64"
-                    r="56"
-                    stroke="currentColor"
-                    strokeWidth="12"
-                    fill="none"
-                    className="text-green-200 dark:text-green-800"
-                  />
-                  <circle
-                    cx="64"
-                    cy="64"
-                    r="56"
-                    stroke="currentColor"
-                    strokeWidth="12"
-                    fill="none"
-                    strokeDasharray={`${2 * Math.PI * 56}`}
-                    strokeDashoffset={`${2 * Math.PI * 56 * (1 - hamPercentage / 100)}`}
-                    className="text-green-600 dark:text-green-400"
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-3xl font-bold text-green-700 dark:text-green-300">
-                    {hamPercentage.toFixed(1)}%
-                  </span>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-8">
+              {/* Gráfica de Pastel */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4 text-center">Distribución por Tipo</h3>
+                <ChartContainer config={chartConfig} className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={chartData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percentage }) => `${name}: ${percentage.toFixed(1)}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {chartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </div>
+
+              {/* Tarjetas de Estadísticas */}
+              <div className="flex flex-col justify-center space-y-4">
+                <Card className="p-6 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/30 dark:to-red-900/30 border-red-200 dark:border-red-800">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-bold text-red-700 dark:text-red-300">SPAM Detectado</h3>
+                    <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-bold text-red-700 dark:text-red-300">
+                      {spamPercentage.toFixed(1)}%
+                    </span>
+                    <span className="text-sm text-red-600 dark:text-red-400">({spamCount} emails)</span>
+                  </div>
+                  <Progress value={spamPercentage} className="mt-3 h-2 bg-red-200 dark:bg-red-900" />
+                </Card>
+
+                <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/30 dark:to-green-900/30 border-green-200 dark:border-green-800">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-bold text-green-700 dark:text-green-300">HAM (Legítimo)</h3>
+                    <Mail className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-bold text-green-700 dark:text-green-300">
+                      {hamPercentage.toFixed(1)}%
+                    </span>
+                    <span className="text-sm text-green-600 dark:text-green-400">({hamCount} emails)</span>
+                  </div>
+                  <Progress value={hamPercentage} className="mt-3 h-2 bg-green-200 dark:bg-green-900" />
+                </Card>
+
+                <div className="text-center p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Total de Análisis</p>
+                  <p className="text-3xl font-bold">{totalAnalyses}</p>
                 </div>
               </div>
             </div>
-            <div className="text-center">
-              <p className="text-sm text-green-700 dark:text-green-300">
-                {hamCount} de {totalAnalyses} emails
-              </p>
-            </div>
-          </Card>
-        </div>
+          )}
+        </Card>
 
         <Card className="p-6">
           <h2 className="text-2xl font-bold mb-6">Analizar Email</h2>
           <div className="grid md:grid-cols-2 gap-6">
-            {/* Input Section */}
+            {/* Mode Toggle */}
             <div>
-              {/* Mode Toggle */}
               <div className="mb-4 flex gap-2">
                 <Button onClick={() => setInputMode("text")} variant={inputMode === "text" ? "default" : "outline"}>
                   Texto
@@ -467,3 +468,4 @@ Buy now and win $1000000!!!`}
   )
 }
 
+           
