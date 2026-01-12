@@ -8,8 +8,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
-import { AlertCircle, Mail, Shield, Loader2, BarChart3, Clock, FileText, Download } from "lucide-react"
+import { AlertCircle, Mail, Shield, Loader2, BarChart3, Clock, FileText, Download, AlertTriangle } from "lucide-react"
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts"
+import { Badge } from "@/components/ui/badge"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
@@ -20,6 +21,8 @@ interface AnalysisResult {
   cleaned_text?: string
   filename?: string
   error?: string
+  spam_keywords?: string[]
+  ham_probability?: number
 }
 
 interface Statistics {
@@ -217,6 +220,9 @@ export default function SpamDetectorPage() {
   const currentError = inputMode === "text" ? error : fileError
   const currentLoading = inputMode === "text" ? loading : fileLoading
 
+  const spamProbability = currentResult?.confidence || 0
+  const hamProbability = currentResult ? currentResult.ham_probability || 100 - currentResult.confidence : 0
+
   const chartData = statistics
     ? [
         { name: "SPAM", value: statistics.spam_count, color: "#000000" },
@@ -385,6 +391,51 @@ Buy now and win $1000000!!!`}
                         </div>
                       </div>
 
+                      {/* Probability Chart */}
+                      <div className="bg-muted rounded-lg p-5">
+                        <h3 className="font-bold mb-4 flex items-center gap-2">
+                          <BarChart3 className="h-5 w-5" />
+                          Gráfico de Probabilidad
+                        </h3>
+                        <div className="space-y-4">
+                          {/* SPAM Probability */}
+                          <div>
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-sm font-medium text-red-700">SPAM</span>
+                              <span className="text-sm font-bold text-red-700">{spamProbability.toFixed(2)}%</span>
+                            </div>
+                            <div className="relative h-8 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                className="absolute h-full bg-red-500 transition-all duration-500 ease-out flex items-center justify-end pr-2"
+                                style={{ width: `${spamProbability}%` }}
+                              >
+                                {spamProbability > 10 && (
+                                  <span className="text-xs font-bold text-white">{spamProbability.toFixed(0)}%</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* HAM Probability */}
+                          <div>
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-sm font-medium text-green-700">HAM (Legítimo)</span>
+                              <span className="text-sm font-bold text-green-700">{hamProbability.toFixed(2)}%</span>
+                            </div>
+                            <div className="relative h-8 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                className="absolute h-full bg-green-500 transition-all duration-500 ease-out flex items-center justify-end pr-2"
+                                style={{ width: `${hamProbability}%` }}
+                              >
+                                {hamProbability > 10 && (
+                                  <span className="text-xs font-bold text-white">{hamProbability.toFixed(0)}%</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Confidence Bar */}
                       <div className="bg-muted rounded-lg p-4">
                         <h3 className="font-bold mb-2">Confianza del Modelo</h3>
@@ -395,6 +446,26 @@ Buy now and win $1000000!!!`}
                           <span className="font-bold text-lg">{currentResult.confidence.toFixed(2)}%</span>
                         </div>
                       </div>
+
+                      {/* Spam Keywords List */}
+                      {currentResult.spam_keywords && currentResult.spam_keywords.length > 0 && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-5">
+                          <h3 className="font-bold mb-3 flex items-center gap-2 text-red-700">
+                            <AlertTriangle className="h-5 w-5" />
+                            Palabras que Indican SPAM
+                          </h3>
+                          <p className="text-sm text-muted-foreground mb-3">
+                            Estas palabras contribuyeron a la clasificación de spam:
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {currentResult.spam_keywords.map((keyword, index) => (
+                              <Badge key={index} variant="destructive" className="text-sm">
+                                {keyword}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Metrics */}
                       <div className="grid grid-cols-2 gap-4">
@@ -595,3 +666,4 @@ Buy now and win $1000000!!!`}
     </main>
   )
 }
+
