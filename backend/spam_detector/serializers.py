@@ -37,4 +37,6 @@ class PredictionResponseSerializer(serializers.Serializer):
     confidence = serializers.FloatField()
     latency = serializers.FloatField()
     cleaned_text = serializers.CharField(required=False)
+    spam_keywords = serializers.ListField(child=serializers.CharField(), required=False)  # Added spam_keywords field
     error = serializers.CharField(required=False)
+
