@@ -2,14 +2,14 @@
 
 import type React from "react"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { AlertCircle, Mail, Shield, Loader2, FileText } from "lucide-react"
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { ChartContainer, ChartTooltip } from "@/components/ui/chart"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
@@ -22,19 +22,9 @@ interface AnalysisResult {
   error?: string
 }
 
-interface Statistics {
-  total_analyses: number
-  spam_count: number
-  ham_count: number
-  spam_percentage: number
-  ham_percentage: number
-  avg_confidence: number
-  avg_latency: number
-  last_24h: {
-    total: number
-    spam: number
-    ham: number
-  }
+interface LocalStats {
+  spamCount: number
+  hamCount: number
 }
 
 export default function SpamDetectorPage() {
@@ -52,29 +42,8 @@ export default function SpamDetectorPage() {
   const [fileError, setFileError] = useState<string | null>(null)
   const [fileTextContent, setFileTextContent] = useState<string | null>(null)
 
-  // Statistics state
-  const [statistics, setStatistics] = useState<Statistics | null>(null)
-  const [statsLoading, setStatsLoading] = useState(false)
-
-  // Fetch statistics
-  const fetchStatistics = useCallback(async () => {
-    setStatsLoading(true)
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/statistics/`)
-      if (response.ok) {
-        const data = await response.json()
-        setStatistics(data)
-      }
-    } catch (err) {
-      // Si el API no está disponible, las gráficas mostrarán 0%
-    } finally {
-      setStatsLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchStatistics()
-  }, [fetchStatistics])
+  // Local state for spam and ham counters
+  const [localStats, setLocalStats] = useState<LocalStats>({ spamCount: 0, hamCount: 0 })
 
   // Analyze text message
   const analyzeMessage = async () => {
@@ -100,7 +69,12 @@ export default function SpamDetectorPage() {
       const data = await response.json()
       setResult(data)
 
-      fetchStatistics()
+      // Update local counters based on the result
+      if (data.prediction === "spam") {
+        setLocalStats((prev) => ({ ...prev, spamCount: prev.spamCount + 1 }))
+      } else if (data.prediction === "ham") {
+        setLocalStats((prev) => ({ ...prev, hamCount: prev.hamCount + 1 }))
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido")
     } finally {
@@ -132,7 +106,12 @@ export default function SpamDetectorPage() {
       const data = await response.json()
       setFileResult(data)
 
-      fetchStatistics()
+      // Update local counters based on the result
+      if (data.prediction === "spam") {
+        setLocalStats((prev) => ({ ...prev, spamCount: prev.spamCount + 1 }))
+      } else if (data.prediction === "ham") {
+        setLocalStats((prev) => ({ ...prev, hamCount: prev.hamCount + 1 }))
+      }
     } catch (err) {
       setFileError(err instanceof Error ? err.message : "Error desconocido")
     } finally {
@@ -179,12 +158,13 @@ export default function SpamDetectorPage() {
   const currentError = inputMode === "text" ? error : fileError
   const currentLoading = inputMode === "text" ? loading : fileLoading
 
-  const spamCount = statistics?.spam_count ?? 0
-  const hamCount = statistics?.ham_count ?? 0
-  const totalAnalyses = statistics?.total_analyses ?? 0
+  // Calculate percentages using local counters
+  const { spamCount, hamCount } = localStats
+  const totalAnalyses = spamCount + hamCount
   const spamPercentage = totalAnalyses > 0 ? (spamCount / totalAnalyses) * 100 : 0
   const hamPercentage = totalAnalyses > 0 ? (hamCount / totalAnalyses) * 100 : 0
 
+  // Data for the pie chart
   const chartData = [
     { name: "SPAM", value: spamCount, percentage: spamPercentage, fill: "#dc2626" },
     { name: "HAM", value: hamCount, percentage: hamPercentage, fill: "#16a34a" },
@@ -214,76 +194,100 @@ export default function SpamDetectorPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-        <Card className="p-6">
+        {/* Improved chart section */}
+        <Card className="p-6 bg-gradient-to-br from-background to-muted/20">
           <h2 className="text-2xl font-bold mb-6 text-center">Distribución de Análisis</h2>
 
           {totalAnalyses === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Mail className="h-16 w-16 mx-auto mb-4 opacity-50" />
-              <p className="text-lg">Aún no hay análisis realizados</p>
-              <p className="text-sm">Las gráficas aparecerán después de analizar emails</p>
+              <p className="text-lg font-semibold">Aún no hay análisis realizados</p>
+              <p className="text-sm mt-2">Las gráficas aparecerán después de analizar emails</p>
             </div>
           ) : (
             <div className="grid md:grid-cols-2 gap-8">
-              {/* Gráfica de Pastel */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4 text-center">Distribución por Tipo</h3>
-                <ChartContainer config={chartConfig} className="h-[300px]">
+              {/* Improved pie chart */}
+              <div className="flex flex-col items-center">
+                <h3 className="text-lg font-semibold mb-4">Distribución por Tipo</h3>
+                <ChartContainer config={chartConfig} className="h-[350px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={chartData}
                         cx="50%"
                         cy="50%"
-                        labelLine={false}
+                        labelLine={true}
                         label={({ name, percentage }) => `${name}: ${percentage.toFixed(1)}%`}
-                        outerRadius={80}
+                        outerRadius={100}
+                        innerRadius={60}
                         fill="#8884d8"
                         dataKey="value"
+                        strokeWidth={2}
+                        stroke="#fff"
                       >
                         {chartData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.fill} />
                         ))}
                       </Pie>
-                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <ChartTooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload
+                            return (
+                              <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
+                                <p className="font-bold" style={{ color: data.fill }}>
+                                  {data.name}
+                                </p>
+                                <p className="text-sm">Cantidad: {data.value}</p>
+                                <p className="text-sm">Porcentaje: {data.percentage.toFixed(1)}%</p>
+                              </div>
+                            )
+                          }
+                          return null
+                        }}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </ChartContainer>
               </div>
 
-              {/* Tarjetas de Estadísticas */}
+              {/* Improved statistics cards */}
               <div className="flex flex-col justify-center space-y-4">
-                <Card className="p-6 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/30 dark:to-red-900/30 border-red-200 dark:border-red-800">
-                  <div className="flex items-center justify-between mb-2">
+                <Card className="p-6 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/40 dark:to-red-900/40 border-2 border-red-300 dark:border-red-700 shadow-lg">
+                  <div className="flex items-center justify-between mb-3">
                     <h3 className="text-lg font-bold text-red-700 dark:text-red-300">SPAM Detectado</h3>
-                    <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                    <AlertCircle className="h-7 w-7 text-red-600 dark:text-red-400" />
                   </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-bold text-red-700 dark:text-red-300">
+                  <div className="flex items-baseline gap-2 mb-2">
+                    <span className="text-5xl font-bold text-red-700 dark:text-red-300">
                       {spamPercentage.toFixed(1)}%
                     </span>
-                    <span className="text-sm text-red-600 dark:text-red-400">({spamCount} emails)</span>
                   </div>
-                  <Progress value={spamPercentage} className="mt-3 h-2 bg-red-200 dark:bg-red-900" />
+                  <p className="text-sm text-red-600 dark:text-red-400 mb-3">
+                    {spamCount} email{spamCount !== 1 ? "s" : ""} de {totalAnalyses} total
+                  </p>
+                  <Progress value={spamPercentage} className="h-3 bg-red-200 dark:bg-red-900/50" />
                 </Card>
 
-                <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/30 dark:to-green-900/30 border-green-200 dark:border-green-800">
-                  <div className="flex items-center justify-between mb-2">
+                <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/40 dark:to-green-900/40 border-2 border-green-300 dark:border-green-700 shadow-lg">
+                  <div className="flex items-center justify-between mb-3">
                     <h3 className="text-lg font-bold text-green-700 dark:text-green-300">HAM (Legítimo)</h3>
-                    <Mail className="h-6 w-6 text-green-600 dark:text-green-400" />
+                    <Mail className="h-7 w-7 text-green-600 dark:text-green-400" />
                   </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-bold text-green-700 dark:text-green-300">
+                  <div className="flex items-baseline gap-2 mb-2">
+                    <span className="text-5xl font-bold text-green-700 dark:text-green-300">
                       {hamPercentage.toFixed(1)}%
                     </span>
-                    <span className="text-sm text-green-600 dark:text-green-400">({hamCount} emails)</span>
                   </div>
-                  <Progress value={hamPercentage} className="mt-3 h-2 bg-green-200 dark:bg-green-900" />
+                  <p className="text-sm text-green-600 dark:text-green-400 mb-3">
+                    {hamCount} email{hamCount !== 1 ? "s" : ""} de {totalAnalyses} total
+                  </p>
+                  <Progress value={hamPercentage} className="h-3 bg-green-200 dark:bg-green-900/50" />
                 </Card>
 
-                <div className="text-center p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">Total de Análisis</p>
-                  <p className="text-3xl font-bold">{totalAnalyses}</p>
+                <div className="text-center p-5 bg-gradient-to-br from-muted to-muted/50 rounded-lg border-2 shadow-md">
+                  <p className="text-sm text-muted-foreground font-medium">Total de Análisis</p>
+                  <p className="text-4xl font-bold mt-1">{totalAnalyses}</p>
                 </div>
               </div>
             </div>
@@ -467,5 +471,3 @@ Buy now and win $1000000!!!`}
     </main>
   )
 }
-
-           
