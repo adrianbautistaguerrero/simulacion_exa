@@ -99,20 +99,36 @@ ML_MODEL_PATH = BASE_DIR / 'modelo_spam_final.joblib'
 # CORS configuration for frontend
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "https://localhost:3000",
+    "https://simulacion-exa.vercel.app",
 ]
 
-# Allow all origins in development (remove in production)
-CORS_ALLOW_ALL_ORIGINS = DEBUG
+# Si usas dominios de preview de Vercel, también permite:
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.vercel\.app$",  # Todos los previews de Vercel
+]
 
-# REST Framework Configuration
-REST_FRAMEWORK = {
-    'DEFAULT_RENDERER_CLASSES': [
-        'rest_framework.renderers.JSONRenderer',
-    ],
-    'DEFAULT_PARSER_CLASSES': [
-        'rest_framework.parsers.JSONParser',
-        'rest_framework.parsers.MultiPartParser',
-        'rest_framework.parsers.FormParser',
-    ],
-}
+# Permitir cookies/autenticación (si las usas)
+CORS_ALLOW_CREDENTIALS = True
+
+# Métodos HTTP permitidos
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+# Headers permitidos
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
