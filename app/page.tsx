@@ -113,6 +113,15 @@ export default function SpamDetectorPage() {
   useEffect(() => {
     fetchStatistics()
     fetchHistory(historyLimit)
+
+    // Log the API URL on mount to help with debugging
+    if (typeof window !== "undefined") {
+      console.log(
+        "[v0] API_BASE_URL:",
+        API_BASE_URL,
+        process.env.NEXT_PUBLIC_API_URL ? "" : "(usando fallback - configura NEXT_PUBLIC_API_URL en Vercel)",
+      )
+    }
   }, [fetchStatistics, fetchHistory, historyLimit])
 
   // Analyze text message
@@ -132,17 +141,20 @@ export default function SpamDetectorPage() {
         body: JSON.stringify({ email_text: message }),
       })
 
+      const data = await response.json()
+      console.log("[v0] Backend response for analyze:", data)
+
       if (!response.ok) {
-        throw new Error("Error al analizar el mensaje")
+        throw new Error(data.error || `Error ${response.status}: ${data.detail || "Error al analizar el mensaje"}`)
       }
 
-      const data = await response.json()
       setResult(data)
 
       fetchStatistics()
       fetchHistory(historyLimit)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error desconocido")
+      console.error("[v0] Error analyzing message:", err)
+      setError(err instanceof Error ? err.message : "Error desconocido al conectar con el servidor")
     } finally {
       setLoading(false)
     }
@@ -165,17 +177,20 @@ export default function SpamDetectorPage() {
         body: formData,
       })
 
+      const data = await response.json()
+      console.log("[v0] Backend response for analyze-file:", data)
+
       if (!response.ok) {
-        throw new Error("Error al analizar el archivo")
+        throw new Error(data.error || `Error ${response.status}: ${data.detail || "Error al analizar el archivo"}`)
       }
 
-      const data = await response.json()
       setFileResult(data)
 
       fetchStatistics()
       fetchHistory(historyLimit)
     } catch (err) {
-      setFileError(err instanceof Error ? err.message : "Error desconocido")
+      console.error("[v0] Error analyzing file:", err)
+      setFileError(err instanceof Error ? err.message : "Error desconocido al conectar con el servidor")
     } finally {
       setFileLoading(false)
     }
@@ -666,4 +681,3 @@ Buy now and win $1000000!!!`}
     </main>
   )
 }
-
