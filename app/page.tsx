@@ -64,7 +64,7 @@ export default function SpamDetectorPage() {
         setStatistics(data)
       }
     } catch (err) {
-      console.log("[v0] Error fetching statistics:", err)
+      // Si el API no está disponible, las gráficas mostrarán 0%
     } finally {
       setStatsLoading(false)
     }
@@ -177,6 +177,12 @@ export default function SpamDetectorPage() {
   const currentError = inputMode === "text" ? error : fileError
   const currentLoading = inputMode === "text" ? loading : fileLoading
 
+  const spamPercentage = statistics?.spam_percentage ?? 0
+  const hamPercentage = statistics?.ham_percentage ?? 0
+  const spamCount = statistics?.spam_count ?? 0
+  const hamCount = statistics?.ham_count ?? 0
+  const totalAnalyses = statistics?.total_analyses ?? 0
+
   return (
     <main className="min-h-screen bg-background">
       <div className="bg-foreground text-background py-8 px-4">
@@ -190,99 +196,97 @@ export default function SpamDetectorPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-        {statistics && (
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* SPAM Percentage Chart */}
-            <Card className="p-6 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950 dark:to-red-900">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-red-700 dark:text-red-300">SPAM Detectado</h3>
-                <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
-              </div>
-              <div className="flex items-center justify-center py-6">
-                <div className="relative">
-                  <svg className="w-32 h-32 transform -rotate-90">
-                    <circle
-                      cx="64"
-                      cy="64"
-                      r="56"
-                      stroke="currentColor"
-                      strokeWidth="12"
-                      fill="none"
-                      className="text-red-200 dark:text-red-800"
-                    />
-                    <circle
-                      cx="64"
-                      cy="64"
-                      r="56"
-                      stroke="currentColor"
-                      strokeWidth="12"
-                      fill="none"
-                      strokeDasharray={`${2 * Math.PI * 56}`}
-                      strokeDashoffset={`${2 * Math.PI * 56 * (1 - statistics.spam_percentage / 100)}`}
-                      className="text-red-600 dark:text-red-400"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-3xl font-bold text-red-700 dark:text-red-300">
-                      {statistics.spam_percentage.toFixed(1)}%
-                    </span>
-                  </div>
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* SPAM Percentage Chart */}
+          <Card className="p-6 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950 dark:to-red-900">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-red-700 dark:text-red-300">SPAM Detectado</h3>
+              <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+            </div>
+            <div className="flex items-center justify-center py-6">
+              <div className="relative">
+                <svg className="w-32 h-32 transform -rotate-90">
+                  <circle
+                    cx="64"
+                    cy="64"
+                    r="56"
+                    stroke="currentColor"
+                    strokeWidth="12"
+                    fill="none"
+                    className="text-red-200 dark:text-red-800"
+                  />
+                  <circle
+                    cx="64"
+                    cy="64"
+                    r="56"
+                    stroke="currentColor"
+                    strokeWidth="12"
+                    fill="none"
+                    strokeDasharray={`${2 * Math.PI * 56}`}
+                    strokeDashoffset={`${2 * Math.PI * 56 * (1 - spamPercentage / 100)}`}
+                    className="text-red-600 dark:text-red-400"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-3xl font-bold text-red-700 dark:text-red-300">
+                    {spamPercentage.toFixed(1)}%
+                  </span>
                 </div>
               </div>
-              <div className="text-center">
-                <p className="text-sm text-red-700 dark:text-red-300">
-                  {statistics.spam_count} de {statistics.total_analyses} emails
-                </p>
-              </div>
-            </Card>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-red-700 dark:text-red-300">
+                {spamCount} de {totalAnalyses} emails
+              </p>
+            </div>
+          </Card>
 
-            {/* HAM Percentage Chart */}
-            <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-green-700 dark:text-green-300">HAM (Legítimo)</h3>
-                <Mail className="h-6 w-6 text-green-600 dark:text-green-400" />
-              </div>
-              <div className="flex items-center justify-center py-6">
-                <div className="relative">
-                  <svg className="w-32 h-32 transform -rotate-90">
-                    <circle
-                      cx="64"
-                      cy="64"
-                      r="56"
-                      stroke="currentColor"
-                      strokeWidth="12"
-                      fill="none"
-                      className="text-green-200 dark:text-green-800"
-                    />
-                    <circle
-                      cx="64"
-                      cy="64"
-                      r="56"
-                      stroke="currentColor"
-                      strokeWidth="12"
-                      fill="none"
-                      strokeDasharray={`${2 * Math.PI * 56}`}
-                      strokeDashoffset={`${2 * Math.PI * 56 * (1 - statistics.ham_percentage / 100)}`}
-                      className="text-green-600 dark:text-green-400"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-3xl font-bold text-green-700 dark:text-green-300">
-                      {statistics.ham_percentage.toFixed(1)}%
-                    </span>
-                  </div>
+          {/* HAM Percentage Chart */}
+          <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-green-700 dark:text-green-300">HAM (Legítimo)</h3>
+              <Mail className="h-6 w-6 text-green-600 dark:text-green-400" />
+            </div>
+            <div className="flex items-center justify-center py-6">
+              <div className="relative">
+                <svg className="w-32 h-32 transform -rotate-90">
+                  <circle
+                    cx="64"
+                    cy="64"
+                    r="56"
+                    stroke="currentColor"
+                    strokeWidth="12"
+                    fill="none"
+                    className="text-green-200 dark:text-green-800"
+                  />
+                  <circle
+                    cx="64"
+                    cy="64"
+                    r="56"
+                    stroke="currentColor"
+                    strokeWidth="12"
+                    fill="none"
+                    strokeDasharray={`${2 * Math.PI * 56}`}
+                    strokeDashoffset={`${2 * Math.PI * 56 * (1 - hamPercentage / 100)}`}
+                    className="text-green-600 dark:text-green-400"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-3xl font-bold text-green-700 dark:text-green-300">
+                    {hamPercentage.toFixed(1)}%
+                  </span>
                 </div>
               </div>
-              <div className="text-center">
-                <p className="text-sm text-green-700 dark:text-green-300">
-                  {statistics.ham_count} de {statistics.total_analyses} emails
-                </p>
-              </div>
-            </Card>
-          </div>
-        )}
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-green-700 dark:text-green-300">
+                {hamCount} de {totalAnalyses} emails
+              </p>
+            </div>
+          </Card>
+        </div>
 
         <Card className="p-6">
           <h2 className="text-2xl font-bold mb-6">Analizar Email</h2>
@@ -462,3 +466,4 @@ Buy now and win $1000000!!!`}
     </main>
   )
 }
+
