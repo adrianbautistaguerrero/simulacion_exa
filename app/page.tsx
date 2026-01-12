@@ -22,9 +22,17 @@ interface AnalysisResult {
   error?: string
 }
 
+interface AnalysisHistory {
+  prediction: "spam" | "ham"
+  confidence: number
+  timestamp: number
+}
+
 interface LocalStats {
   spamCount: number
   hamCount: number
+  spamConfidences: number[]
+  hamConfidences: number[]
 }
 
 export default function SpamDetectorPage() {
@@ -42,8 +50,12 @@ export default function SpamDetectorPage() {
   const [fileError, setFileError] = useState<string | null>(null)
   const [fileTextContent, setFileTextContent] = useState<string | null>(null)
 
-  // Local state for spam and ham counters
-  const [localStats, setLocalStats] = useState<LocalStats>({ spamCount: 0, hamCount: 0 })
+  const [localStats, setLocalStats] = useState<LocalStats>({
+    spamCount: 0,
+    hamCount: 0,
+    spamConfidences: [],
+    hamConfidences: [],
+  })
 
   // Analyze text message
   const analyzeMessage = async () => {
@@ -69,11 +81,18 @@ export default function SpamDetectorPage() {
       const data = await response.json()
       setResult(data)
 
-      // Update local counters based on the result
       if (data.prediction === "spam") {
-        setLocalStats((prev) => ({ ...prev, spamCount: prev.spamCount + 1 }))
+        setLocalStats((prev) => ({
+          ...prev,
+          spamCount: prev.spamCount + 1,
+          spamConfidences: [...prev.spamConfidences, data.confidence],
+        }))
       } else if (data.prediction === "ham") {
-        setLocalStats((prev) => ({ ...prev, hamCount: prev.hamCount + 1 }))
+        setLocalStats((prev) => ({
+          ...prev,
+          hamCount: prev.hamCount + 1,
+          hamConfidences: [...prev.hamConfidences, data.confidence],
+        }))
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido")
@@ -106,11 +125,18 @@ export default function SpamDetectorPage() {
       const data = await response.json()
       setFileResult(data)
 
-      // Update local counters based on the result
       if (data.prediction === "spam") {
-        setLocalStats((prev) => ({ ...prev, spamCount: prev.spamCount + 1 }))
+        setLocalStats((prev) => ({
+          ...prev,
+          spamCount: prev.spamCount + 1,
+          spamConfidences: [...prev.spamConfidences, data.confidence],
+        }))
       } else if (data.prediction === "ham") {
-        setLocalStats((prev) => ({ ...prev, hamCount: prev.hamCount + 1 }))
+        setLocalStats((prev) => ({
+          ...prev,
+          hamCount: prev.hamCount + 1,
+          hamConfidences: [...prev.hamConfidences, data.confidence],
+        }))
       }
     } catch (err) {
       setFileError(err instanceof Error ? err.message : "Error desconocido")
@@ -158,16 +184,19 @@ export default function SpamDetectorPage() {
   const currentError = inputMode === "text" ? error : fileError
   const currentLoading = inputMode === "text" ? loading : fileLoading
 
-  // Calculate percentages using local counters
-  const { spamCount, hamCount } = localStats
+  const { spamCount, hamCount, spamConfidences, hamConfidences } = localStats
   const totalAnalyses = spamCount + hamCount
-  const spamPercentage = totalAnalyses > 0 ? (spamCount / totalAnalyses) * 100 : 0
-  const hamPercentage = totalAnalyses > 0 ? (hamCount / totalAnalyses) * 100 : 0
 
-  // Data for the pie chart
+  // Calcular promedio de confianza para spam y ham
+  const avgSpamConfidence =
+    spamConfidences.length > 0 ? spamConfidences.reduce((a, b) => a + b, 0) / spamConfidences.length : 0
+
+  const avgHamConfidence =
+    hamConfidences.length > 0 ? hamConfidences.reduce((a, b) => a + b, 0) / hamConfidences.length : 0
+
   const chartData = [
-    { name: "SPAM", value: spamCount, percentage: spamPercentage, fill: "#dc2626" },
-    { name: "HAM", value: hamCount, percentage: hamPercentage, fill: "#16a34a" },
+    { name: "SPAM", value: avgSpamConfidence, count: spamCount, fill: "#dc2626" },
+    { name: "HAM", value: avgHamConfidence, count: hamCount, fill: "#16a34a" },
   ]
 
   const chartConfig = {
@@ -196,7 +225,7 @@ export default function SpamDetectorPage() {
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         {/* Improved chart section */}
         <Card className="p-6 bg-gradient-to-br from-background to-muted/20">
-          <h2 className="text-2xl font-bold mb-6 text-center">Distribución de Análisis</h2>
+          <h2 className="text-2xl font-bold mb-6 text-center">Confianza Promedio del Modelo</h2>
 
           {totalAnalyses === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
@@ -208,7 +237,7 @@ export default function SpamDetectorPage() {
             <div className="grid md:grid-cols-2 gap-8">
               {/* Improved pie chart */}
               <div className="flex flex-col items-center">
-                <h3 className="text-lg font-semibold mb-4">Distribución por Tipo</h3>
+                <h3 className="text-lg font-semibold mb-4">Confianza por Tipo</h3>
                 <ChartContainer config={chartConfig} className="h-[350px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -217,7 +246,7 @@ export default function SpamDetectorPage() {
                         cx="50%"
                         cy="50%"
                         labelLine={true}
-                        label={({ name, percentage }) => `${name}: ${percentage.toFixed(1)}%`}
+                        label={({ name, value }) => `${name}: ${value.toFixed(1)}%`}
                         outerRadius={100}
                         innerRadius={60}
                         fill="#8884d8"
@@ -238,8 +267,8 @@ export default function SpamDetectorPage() {
                                 <p className="font-bold" style={{ color: data.fill }}>
                                   {data.name}
                                 </p>
-                                <p className="text-sm">Cantidad: {data.value}</p>
-                                <p className="text-sm">Porcentaje: {data.percentage.toFixed(1)}%</p>
+                                <p className="text-sm">Confianza: {data.value.toFixed(1)}%</p>
+                                <p className="text-sm">Cantidad: {data.count}</p>
                               </div>
                             )
                           }
@@ -251,7 +280,6 @@ export default function SpamDetectorPage() {
                 </ChartContainer>
               </div>
 
-              {/* Improved statistics cards */}
               <div className="flex flex-col justify-center space-y-4">
                 <Card className="p-6 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/40 dark:to-red-900/40 border-2 border-red-300 dark:border-red-700 shadow-lg">
                   <div className="flex items-center justify-between mb-3">
@@ -260,13 +288,13 @@ export default function SpamDetectorPage() {
                   </div>
                   <div className="flex items-baseline gap-2 mb-2">
                     <span className="text-5xl font-bold text-red-700 dark:text-red-300">
-                      {spamPercentage.toFixed(1)}%
+                      {avgSpamConfidence.toFixed(1)}%
                     </span>
                   </div>
                   <p className="text-sm text-red-600 dark:text-red-400 mb-3">
-                    {spamCount} email{spamCount !== 1 ? "s" : ""} de {totalAnalyses} total
+                    Confianza promedio - {spamCount} email{spamCount !== 1 ? "s" : ""}
                   </p>
-                  <Progress value={spamPercentage} className="h-3 bg-red-200 dark:bg-red-900/50" />
+                  <Progress value={avgSpamConfidence} className="h-3 bg-red-200 dark:bg-red-900/50" />
                 </Card>
 
                 <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/40 dark:to-green-900/40 border-2 border-green-300 dark:border-green-700 shadow-lg">
@@ -276,13 +304,13 @@ export default function SpamDetectorPage() {
                   </div>
                   <div className="flex items-baseline gap-2 mb-2">
                     <span className="text-5xl font-bold text-green-700 dark:text-green-300">
-                      {hamPercentage.toFixed(1)}%
+                      {avgHamConfidence.toFixed(1)}%
                     </span>
                   </div>
                   <p className="text-sm text-green-600 dark:text-green-400 mb-3">
-                    {hamCount} email{hamCount !== 1 ? "s" : ""} de {totalAnalyses} total
+                    Confianza promedio - {hamCount} email{hamCount !== 1 ? "s" : ""}
                   </p>
-                  <Progress value={hamPercentage} className="h-3 bg-green-200 dark:bg-green-900/50" />
+                  <Progress value={avgHamConfidence} className="h-3 bg-green-200 dark:bg-green-900/50" />
                 </Card>
 
                 <div className="text-center p-5 bg-gradient-to-br from-muted to-muted/50 rounded-lg border-2 shadow-md">
@@ -471,3 +499,4 @@ Buy now and win $1000000!!!`}
     </main>
   )
 }
+
