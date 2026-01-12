@@ -1,0 +1,28 @@
+services:
+  # Backend API Service (Python/Django)
+  - type: web
+    name: spam-detector-api
+    runtime: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn django_spam_detector.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: 0
+      - key: ALLOWED_HOSTS
+        sync: false
+
+  # Frontend Service (Next.js)
+  - type: web
+    name: spam-detector-frontend
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 18.18.0
+      - key: NEXT_PUBLIC_API_URL
+        value: https://spam-detector-api.onrender.com
